@@ -134,11 +134,11 @@ jobs:
 
           artifact_dir="$PWD/artifact"
           mkdir -p "$artifact_dir"
-          zip_name="firmware-${REQUEST_ID}-password.zip"
+          zip_name="firmware-${REQUEST_ID}.zip"
 
           (
             cd "$bundle_dir"
-            zip -qr -P "$password" "$artifact_dir/$zip_name" .
+            zip -qr -P "$artifact_dir/$zip_name" .
           )
 
           rm -rf "$bundle_dir"
@@ -164,7 +164,7 @@ jobs:
           - 设备：${{ env.DEVICE_NAME || '未设置' }}
           - 板子：${{ env.BOARD_NAME || '未设置' }}
           - ESPHome：${{ inputs.esphome_version || '最新' }}
-          - 压缩包：`artifact/firmware-${{ env.REQUEST_ID }}.zip`（下载后需使用页面展示的密码解压）
+          - 压缩包：`artifact/firmware-${{ env.REQUEST_ID }}.zip`（可直接解压）
 
           下载产物：在 Workflow 的 Artifacts 面板获取 `firmware-${{ env.REQUEST_ID }}`。
           EOF
