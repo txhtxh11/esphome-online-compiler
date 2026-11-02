@@ -7,6 +7,7 @@ Paste your ESPHome YAML in the browser to compile in the cloud and download firm
 - ✅ Automatically detects and collects `!secret` placeholders in order of appearance, with local caching to avoid re-entering values on subsequent compilations.
 - ✅ No password, no compression: the Workflow keeps the raw `*.bin` firmware, and the browser unpacks the GitHub artifact wrapper so you download `firmware.bin` directly.
 - ✅ Automatically saves YAML drafts, ESPHome version selection, and recent compilation status; recovers on page refresh.
+- ✅ Two modules in one page: **Compile** and **Flash** (`?tab=flash` deep link). The flash module reuses the freshly compiled firmware and writes it over Web Serial / WebUSB via esp-web-tools — no desktop tool, no download step.
 - ✅ Supports selecting common ESPHome versions from a dropdown or manually entering a specific version number for historical builds.
 - ✅ Retains GitHub Workflow link on failure for one-click access to full logs.
 

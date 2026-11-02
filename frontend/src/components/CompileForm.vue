@@ -188,10 +188,15 @@
 <script setup lang="ts">
 import axios from 'axios';
 import { Base64 } from 'js-base64';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import YamlEditor from './YamlEditor.vue';
 import { extractFirmwareFiles, pickRecommendedFirmware, type FirmwareFile } from '../zip-extract';
+import {
+  compiledFirmwareFiles as firmwareFiles,
+  detectChipFamily,
+  setCompiledFirmware
+} from '../firmware-store';
 
 type TokenSource = 'service' | 'session';
 
@@ -274,7 +279,6 @@ const requestId = ref<string | null>(null);
 const runUrl = ref<string | null>(null);
 const artifactUrl = ref<string | null>(null);
 const artifact = ref<ArtifactMeta | null>(null);
-const firmwareFiles = shallowRef<FirmwareFile[]>([]);
 const pending = ref(false);
 const preparingFirmware = ref(false);
 const savingFirmware = ref(false);
@@ -993,7 +997,7 @@ async function prepareFirmware(): Promise<FirmwareFile[]> {
       error.value = t('compileForm.errors.firmwareExtractFailed');
       return [];
     }
-    firmwareFiles.value = files;
+    setCompiledFirmware(files, detectChipFamily(yaml.value));
     persistJobState();
     return files;
   } catch (err) {

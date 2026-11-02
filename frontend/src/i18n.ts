@@ -14,6 +14,10 @@ const messages = {
       locales: {
         en: 'English',
         zh: '中文'
+      },
+      tabs: {
+        compile: 'Compile',
+        flash: 'Flash'
       }
     },
     compileForm: {
@@ -112,6 +116,52 @@ const messages = {
         downloadFailed: 'Failed to download the firmware. Check your permissions or try again later.',
         firmwareExtractFailed: 'Failed to unpack the firmware binaries. Please download from the Workflow page instead.'
       }
+    },
+    flash: {
+      title: 'Flash Firmware',
+      subtitle: 'Flash from the browser over Web Serial / WebUSB — no desktop flashing tool needed.',
+      source: {
+        title: 'Firmware Source',
+        compiled: 'Latest compilation',
+        file: 'Local .bin file',
+        empty: 'Nothing compiled yet. Run a build in the Compile tab, or choose a local .bin file.',
+        factoryHint: 'For a first USB flash choose firmware.factory.bin; for OTA use firmware.bin.',
+        selectFile: 'Choose a .bin file',
+        invalidFile: 'Only .bin files are supported.'
+      },
+      chip: {
+        label: 'Chip family',
+        hint: 'Match the chip on your board — a wrong choice will not boot.'
+      },
+      button: {
+        ready: 'Connect device and flash',
+        unsupported: 'This browser does not support Web Serial / WebUSB. Use Chrome or Edge.',
+        notAllowed: 'Flashing requires HTTPS or localhost.'
+      },
+      status: {
+        noFirmware: 'Select a firmware file first.',
+        unsupportedBrowser:
+          'This browser cannot flash from the web. Use Chrome or Edge on a computer, or Chrome for Android with OTG enabled.',
+        loading: 'Loading the flashing component…',
+        ready: 'Ready: {name}',
+        failed: 'Failed to load the flashing component. Check your network and try again.'
+      },
+      tips: {
+        title: 'Flashing Notes',
+        computerTitle: 'On a computer',
+        computer1: 'ESP8266: hold FLASH while powering on; ESP32 usually enters download mode automatically.',
+        computer2: 'Click the button and pick the serial port (COMx / USB-Serial) in the dialog.',
+        computer3: 'Wait for flashing to finish (30 s – 2 min) and do not unplug the cable.',
+        computer4: 'A Wi-Fi setup dialog opens afterwards — enter your SSID and password.',
+        computer5: 'In the iPhone Home app tap "+" and scan the pairing code 111-22-333.',
+        androidTitle: 'On Android',
+        android1: 'Use a USB OTG adapter to connect the board to your phone.',
+        android2: 'Enable OTG in the phone settings (search for "OTG").',
+        android3: 'Open this page over HTTPS in Chrome for Android.',
+        android4: 'Tap the button and authorize the USB device in the dialog.',
+        android5: 'iOS cannot flash from the browser — use Wi-Fi OTA instead.',
+        iosNote: 'iPhone and iPad do not support web flashing; use Wi-Fi OTA.'
+      }
     }
   },
   zh: {
@@ -121,6 +171,10 @@ const messages = {
       locales: {
         en: '英语',
         zh: '中文'
+      },
+      tabs: {
+        compile: '在线编译',
+        flash: '在线烧录'
       }
     },
     compileForm: {
@@ -215,6 +269,51 @@ const messages = {
         statusFailed: '获取状态失败。',
         downloadFailed: '下载固件失败，请检查权限或稍后重试。',
         firmwareExtractFailed: '固件解包失败，请到 Workflow 页面手动下载产物。'
+      }
+    },
+    flash: {
+      title: '在线烧录',
+      subtitle: '通过 Web Serial / WebUSB 直接从浏览器烧录，无需安装任何桌面工具。',
+      source: {
+        title: '固件来源',
+        compiled: '本次编译结果',
+        file: '本地 .bin 文件',
+        empty: '还没有编译结果。先到「在线编译」模块编译一次，或选择一个本地 .bin 文件。',
+        factoryHint: '首次 USB 烧录请选 firmware.factory.bin；OTA 升级请用 firmware.bin。',
+        selectFile: '选择 .bin 文件',
+        invalidFile: '只支持 .bin 文件。'
+      },
+      chip: {
+        label: '芯片类型',
+        hint: '必须与板子实际芯片一致，选错会无法启动。'
+      },
+      button: {
+        ready: '连接设备并烧录',
+        unsupported: '当前浏览器不支持 Web Serial / WebUSB，请使用 Chrome 或 Edge。',
+        notAllowed: '需要 HTTPS 或 localhost 才能烧录。'
+      },
+      status: {
+        noFirmware: '请先选择固件。',
+        unsupportedBrowser: '当前浏览器无法网页烧录，请用电脑 Chrome / Edge，或安卓 Chrome 并开启 OTG。',
+        loading: '正在加载烧录组件…',
+        ready: '已就绪：{name}',
+        failed: '烧录组件加载失败，请检查网络后重试。'
+      },
+      tips: {
+        title: '烧录提示',
+        computerTitle: '电脑烧录',
+        computer1: 'ESP8266 按住 Flash 键再上电；ESP32 通常自动进入下载模式。',
+        computer2: '点上面按钮，在弹窗里选择对应的串口（一般是 COMx / USB-Serial）。',
+        computer3: '等待烧录完成（约 30 秒～2 分钟），过程中不要拔线。',
+        computer4: '烧录完成后会弹出 WiFi 配网窗口，输入 WiFi 名称和密码。',
+        computer5: 'iPhone 家庭 App 右上角「+」扫码，配对码 111-22-333。',
+        androidTitle: '安卓手机烧录',
+        android1: '准备 USB OTG 转接线，连接开发板与手机。',
+        android2: '在手机设置中搜索并开启 OTG。',
+        android3: '用 Chrome for Android 通过 HTTPS 打开本页。',
+        android4: '点按钮，在弹窗中授权 USB 设备后开始烧录。',
+        android5: 'iPhone / iPad 不支持网页烧录，请改用 WiFi OTA。',
+        iosNote: 'iPhone 和 iPad 不支持网页烧录，请使用 WiFi OTA。'
       }
     }
   }
