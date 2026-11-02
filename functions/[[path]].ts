@@ -1158,22 +1158,44 @@ function timingSafeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
-function buildCorsResponse(request: Request, env: Env, response: Response): Response {
-  const headers = new Headers(response.headers);
-  const origin = request.headers.get('Origin');
+const LOCAL_ORIGIN_PATTERN =
+  /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?$/i;
+const LAN_ORIGIN_PATTERN =
+  /^https?:\/\/(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(?::\d+)?$/i;
+
+// 本机与内网来源一律放行：file:// 的 Origin 是 null，预览面板 / dev server 走回环地址，
+// 手机连内网调试走私有网段。这些来源只可能出自开发者自己的机器，不扩大对外暴露面。
+function isLocalOrigin(origin: string): boolean {
+  return (
+    origin === 'null' ||
+    LOCAL_ORIGIN_PATTERN.test(origin) ||
+    LAN_ORIGIN_PATTERN.test(origin)
+  );
+}
+
+function isOriginAllowed(origin: string, env: Env): boolean {
   const allowedOrigins = (env.ALLOWED_ORIGINS ?? '')
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+  return (
+    allowedOrigins.includes('*') ||
+    allowedOrigins.includes(origin) ||
+    isLocalOrigin(origin)
+  );
+}
 
-  if (origin && allowedOrigins.length > 0) {
-    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-      headers.set('Access-Control-Allow-Origin', origin);
-      headers.set('Vary', 'Origin');
-      headers.set('Access-Control-Allow-Credentials', 'true');
-      headers.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-      headers.set('Access-Control-Allow-Headers', 'Content-Type');
-    }
+function buildCorsResponse(request: Request, env: Env, response: Response): Response {
+  const headers = new Headers(response.headers);
+  const origin = request.headers.get('Origin');
+
+  if (origin && isOriginAllowed(origin, env)) {
+    headers.set('Access-Control-Allow-Origin', origin);
+    headers.set('Vary', 'Origin');
+    headers.set('Access-Control-Allow-Credentials', 'true');
+    headers.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    headers.set('Access-Control-Allow-Headers', 'Content-Type');
+    headers.set('Access-Control-Max-Age', '86400');
   }
 
   return new Response(response.body, {
