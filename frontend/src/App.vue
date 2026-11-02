@@ -1,6 +1,6 @@
 <template>
-  <main :class="['app', { embed: isEmbed }]">
-    <section v-if="!isEmbed" class="hero">
+  <main :class="['app', { embed: isEmbed, widget: isWidget }]">
+    <section v-if="!isEmbed && !isWidget" class="hero">
       <div class="hero-header">
         <h1 class="hero-title">{{ t('app.title') }}</h1>
         <div class="locale-switcher">
@@ -26,8 +26,11 @@
         </button>
       </nav>
     </section>
-    <CompileForm v-show="activeTab === 'compile'" />
-    <FlashPanel v-show="activeTab === 'flash'" />
+    <FlashPanel v-if="isWidget" />
+    <template v-else>
+      <CompileForm v-show="activeTab === 'compile'" />
+      <FlashPanel v-show="activeTab === 'flash'" />
+    </template>
   </main>
 </template>
 
@@ -45,6 +48,11 @@ type ModuleTab = 'compile' | 'flash';
 const isEmbed =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('embed') === '1';
+
+// 仅供外部站点内嵌：只渲染烧录面板，不含标题、页签和编译模块
+const isWidget =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('widget') === '1';
 
 function readTabFromUrl(): ModuleTab {
   if (typeof window === 'undefined') {
@@ -109,6 +117,25 @@ watch(locale, (nextLocale) => {
 .app.embed {
   padding: 0.75rem;
   max-width: none;
+}
+
+.app.widget {
+  padding: 0;
+  max-width: none;
+}
+
+.app.widget .flash-panel {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 1rem;
+  gap: 1rem;
+}
+
+/* 卡片头部已经写了标题，面板内重复的标题和副标题去掉 */
+.app.widget :deep(.panel-head) {
+  display: none;
 }
 
 .hero {
