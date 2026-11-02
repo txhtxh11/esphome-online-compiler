@@ -44,6 +44,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # ubuntu-latest 的默认 python3 已升到 3.14，esphome 的部分依赖（ruamel.yaml.clib）
+      # 无法从源码构建，必须固定到受支持的 Python 版本
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Decode configuration
         id: decode
         run: |
