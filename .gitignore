@@ -10,3 +10,5 @@ backend/dist/
 .dev.vars.*
 .wrangler/
 /.agent-shell/
+
+.tmp-esbuild/

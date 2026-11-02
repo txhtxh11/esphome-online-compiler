@@ -1,6 +1,6 @@
 <template>
-  <main class="app">
-    <section class="hero">
+  <main :class="['app', { embed: isEmbed }]">
+    <section v-if="!isEmbed" class="hero">
       <div class="hero-header">
         <h1 class="hero-title">{{ t('app.title') }}</h1>
         <div class="locale-switcher">
@@ -42,11 +42,18 @@ const { t, locale } = useI18n();
 
 type ModuleTab = 'compile' | 'flash';
 
+const isEmbed =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('embed') === '1';
+
 function readTabFromUrl(): ModuleTab {
   if (typeof window === 'undefined') {
     return 'compile';
   }
   const params = new URLSearchParams(window.location.search);
+  if (params.get('artifact')) {
+    return 'flash';
+  }
   return params.get('tab') === 'flash' ? 'flash' : 'compile';
 }
 
@@ -97,6 +104,11 @@ watch(locale, (nextLocale) => {
   padding: 2.5rem 1.5rem 3rem;
   max-width: 960px;
   margin: 0 auto;
+}
+
+.app.embed {
+  padding: 0.75rem;
+  max-width: none;
 }
 
 .hero {

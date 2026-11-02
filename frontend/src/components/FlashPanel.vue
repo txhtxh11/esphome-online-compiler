@@ -68,14 +68,15 @@
     </div>
 
     <div class="flasher">
-      <p v-if="!currentFile" class="status warning">{{ t('flash.status.noFirmware') }}</p>
+      <p v-if="loadingExternal" class="status">{{ t('flash.status.loadingFirmware') }}</p>
+      <p v-else-if="!currentFile" class="status warning">{{ t('flash.status.noFirmware') }}</p>
       <p v-else-if="!canFlash" class="status warning">{{ t('flash.status.unsupportedBrowser') }}</p>
       <p v-else-if="loaderError" class="status error">{{ loaderError }}</p>
       <p v-else-if="!elementReady" class="status">{{ t('flash.status.loading') }}</p>
       <template v-else>
         <p class="status">{{ t('flash.status.ready', { name: firmwareLabel }) }}</p>
         <esp-web-install-button :manifest="manifestUrl">
-          <button slot="activate">{{ t('flash.button.ready') }}</button>
+          <button slot="activate" class="flash-btn">{{ t('flash.button.ready') }}</button>
           <span slot="unsupported">{{ t('flash.button.unsupported') }}</span>
           <span slot="not-allowed">{{ t('flash.button.notAllowed') }}</span>
         </esp-web-install-button>
@@ -108,7 +109,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { compiledChipFamily, compiledFirmwareFiles, type ChipFamily } from '../firmware-store';
+import {
+  compiledChipFamily,
+  compiledFirmwareFiles,
+  detectChipFamily,
+  setCompiledFirmware,
+  type ChipFamily
+} from '../firmware-store';
+import { extractFirmwareFiles, pickRecommendedFirmware } from '../zip-extract';
 
 const { t } = useI18n();
 
@@ -130,6 +138,7 @@ const chipFamily = ref<ChipFamily>('ESP8266');
 const manifestUrl = ref('');
 const loaderError = ref<string | null>(null);
 const elementReady = ref(false);
+const loadingExternal = ref(false);
 
 // Chrome/Edge 支持 Web Serial；安卓 Chrome 走 WebUSB
 const canFlash =
@@ -281,11 +290,55 @@ watch([currentFile, chipFamily], () => {
   buildManifest();
 });
 
+async function loadExternalArtifact(rawUrl: string, chip: ChipFamily | null) {
+  loadingExternal.value = true;
+  try {
+    const url = rawUrl.startsWith('http')
+      ? rawUrl
+      : new URL(rawUrl, window.location.origin).toString();
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    const files = extractFirmwareFiles(await resp.arrayBuffer());
+    if (files.length === 0) {
+      throw new Error('no .bin in artifact');
+    }
+    setCompiledFirmware(files, chip ?? detectChipFamily(''));
+    if (chip) {
+      chipFamily.value = chip;
+    }
+    const recommended = pickRecommendedFirmware(files);
+    if (recommended) {
+      selectedName.value = recommended.name;
+    }
+  } catch (err) {
+    console.error('Failed to load artifact parameter', err);
+    loaderError.value = t('flash.status.artifactFailed');
+  } finally {
+    loadingExternal.value = false;
+  }
+}
+
 onMounted(() => {
-  if (compiledFiles.value.length > 0) {
+  const params = new URLSearchParams(window.location.search);
+  const artifact = params.get('artifact');
+  const chip = params.get('chip');
+
+  if (chip === 'esp32') {
+    chipFamily.value = 'ESP32';
+  } else if (chip === 'esp8266') {
+    chipFamily.value = 'ESP8266';
+  }
+
+  if (artifact) {
+    // 由外部站点（如 esp-homekit 生成器）传入产物地址，直接加载后即可烧录
+    void loadExternalArtifact(artifact, chip === 'esp32' ? 'ESP32' : chip === 'esp8266' ? 'ESP8266' : null);
+  } else if (compiledFiles.value.length > 0) {
     selectedName.value = compiledFiles.value[0].name;
     chipFamily.value = compiledChipFamily.value;
   }
+
   buildManifest();
   if (canFlash) {
     void loadEspWebTools();
@@ -479,6 +532,22 @@ esp-web-install-button::part(button) {
   font-weight: 600;
   padding: 0.85rem 2rem;
   font-size: 1rem;
+}
+
+/* slot="activate" 的按钮由本组件渲染，直接给它上样式，避免落到组件默认样式 */
+.flash-btn {
+  background: #f0a437;
+  color: #1a1a1a;
+  border: none;
+  border-radius: 10px;
+  padding: 0.85rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.flash-btn:hover {
+  background: #f7bd63;
 }
 
 .tips {

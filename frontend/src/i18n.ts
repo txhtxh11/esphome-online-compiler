@@ -140,6 +140,8 @@ const messages = {
       },
       status: {
         noFirmware: 'Select a firmware file first.',
+        loadingFirmware: 'Loading firmware…',
+        artifactFailed: 'Could not load the firmware passed in by the previous page. Pick a local .bin instead.',
         unsupportedBrowser:
           'This browser cannot flash from the web. Use Chrome or Edge on a computer, or Chrome for Android with OTG enabled.',
         loading: 'Loading the flashing component…',
@@ -294,6 +296,8 @@ const messages = {
       },
       status: {
         noFirmware: '请先选择固件。',
+        loadingFirmware: '正在加载固件…',
+        artifactFailed: '加载上一页传入的固件失败，请改用本地 .bin 文件。',
         unsupportedBrowser: '当前浏览器无法网页烧录，请用电脑 Chrome / Edge，或安卓 Chrome 并开启 OTG。',
         loading: '正在加载烧录组件…',
         ready: '已就绪：{name}',
