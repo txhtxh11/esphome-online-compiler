@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 - `frontend/` – Vue 3 + Vite SPA; UI logic lives in `src/components/` (notably `CompileForm.vue`), app bootstrap in `src/main.ts`, shared styles in `src/style.scss`.
 - `functions/[[path]].ts` – Cloudflare Pages Function handling `/auth/*` and `/api/*`, including OAuth, session cookies, GitHub workflow triggers, status polling, and artifact proxying.
-- `.github/workflows/esphome-compile.yml` – GitHub Actions workflow compiling ESPHome firmware and publishing a zipped artifact tagged with the `request_id`.
+- `.github/workflows/esphome-compile.yml` – GitHub Actions workflow compiling ESPHome firmware and publishing the raw `*.bin` files (no zip, no password) tagged with the `request_id`; the frontend unpacks GitHub's artifact wrapper in the browser via `frontend/src/zip-extract.ts`.
 - `.dev.vars.example` – template for Wrangler local secrets; copy to `.dev.vars` before running `wrangler pages dev`.
 
 ## Build, Test, and Development Commands

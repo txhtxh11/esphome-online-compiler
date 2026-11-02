@@ -19,10 +19,6 @@ on:
         description: 目标板类型，仅用于日志展示
         required: false
         type: string
-      artifact_password:
-        description: 下载固件压缩包所需的密码
-        required: true
-        type: string
       esphome_version:
         description: 需要安装的 ESPHome 版本（例如 2025.10.1），留空则使用最新版本
         required: false
@@ -53,20 +49,13 @@ jobs:
         run: |
           set -eo pipefail
           encoded="$(jq -r '.inputs.encoded_yaml' "$GITHUB_EVENT_PATH")"
-          password="$(jq -r '.inputs.artifact_password' "$GITHUB_EVENT_PATH")"
 
           if [[ -z "$encoded" || "$encoded" == "null" ]]; then
             echo "Empty encoded YAML input" >&2
             exit 1
           fi
 
-          if [[ -z "$password" || "$password" == "null" ]]; then
-            echo "Missing artifact password input" >&2
-            exit 1
-          fi
-
           echo "::add-mask::$encoded"
-          echo "::add-mask::$password"
           printf '%s' "$encoded" | base64 --decode > config.yaml
           echo "YAML length: $(wc -c < config.yaml)"
           echo "config-path=config.yaml" >> "$GITHUB_OUTPUT"
@@ -100,19 +89,12 @@ jobs:
 
           exit "$status"
 
-      - name: Prepare firmware bundle
+      - name: Collect firmware binaries
         run: |
           set -eo pipefail
-          password="$(jq -r '.inputs.artifact_password' "$GITHUB_EVENT_PATH")"
-          if [[ -z "$password" || "$password" == "null" ]]; then
-            echo "Missing artifact password input" >&2
-            exit 1
-          fi
 
-          echo "::add-mask::$password"
-
-          bundle_dir="$(mktemp -d)"
-          cp "${{ steps.decode.outputs.config-path }}" "$bundle_dir/"
+          artifact_dir="$PWD/artifact"
+          mkdir -p "$artifact_dir"
 
           mapfile -t firmware_files < <(find .esphome/build -type f -name '*.bin')
 
@@ -123,32 +105,20 @@ jobs:
 
           for file in "${firmware_files[@]}"; do
             base="$(basename "$file")"
-            cp "$file" "$bundle_dir/$base"
+            cp "$file" "$artifact_dir/$base"
+            echo "collected: $base ($(stat -c%s "$file") bytes)"
           done
 
-          mapfile -t manifest_files < <(find .esphome/build -type f -name '*.manifest.json')
-          for file in "${manifest_files[@]}"; do
-            base="$(basename "$file")"
-            cp "$file" "$bundle_dir/$base"
-          done
-
-          artifact_dir="$PWD/artifact"
-          mkdir -p "$artifact_dir"
-          zip_name="firmware-${REQUEST_ID}.zip"
-
-          (
-            cd "$bundle_dir"
-            zip -r "$artifact_dir/$zip_name" . || true
-          )
-
-          rm -rf "$bundle_dir"
+          # 产物只保留原始 .bin 固件，不打包、不加密
           rm -f "${{ steps.decode.outputs.config-path }}"
 
-      - name: Upload firmware artifact
+      # GitHub Actions 的 artifact 下载接口固定返回 zip 包装，前端下载后会在浏览器内解包，
+      # 最终交付给用户的始终是解包后的 .bin 文件。
+      - name: Upload firmware binaries
         uses: actions/upload-artifact@v4
         with:
           name: firmware-${{ env.REQUEST_ID }}
-          path: artifact
+          path: artifact/*.bin
           retention-days: 1
           if-no-files-found: error
 
@@ -164,9 +134,9 @@ jobs:
           - 设备：${{ env.DEVICE_NAME || '未设置' }}
           - 板子：${{ env.BOARD_NAME || '未设置' }}
           - ESPHome：${{ inputs.esphome_version || '最新' }}
-          - 压缩包：`artifact/firmware-${{ env.REQUEST_ID }}.zip`（可直接解压）
+          - 产物：原始 `.bin` 固件（不加密、不压缩）
 
-          下载产物：在 Workflow 的 Artifacts 面板获取 `firmware-${{ env.REQUEST_ID }}`。
+          下载产物：编译完成后在页面点击下载即可直接得到 `.bin` 文件。
           EOF
 
           if [[ '${{ steps.compile.outcome }}' == 'failure' ]]; then

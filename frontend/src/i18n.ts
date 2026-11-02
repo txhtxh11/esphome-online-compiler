@@ -33,12 +33,6 @@ const messages = {
             custom: 'Custom...'
           },
           defaultLabel: 'Latest stable'
-        },
-        artifactPassword: {
-          label: 'Archive Password',
-          placeholder: 'Auto-generated 16-character alphanumeric value',
-          regenerate: 'Regenerate',
-          hint: 'You will need this password to unzip the firmware artifact. Use 8-64 alphanumeric characters.'
         }
       },
       secrets: {
@@ -75,10 +69,12 @@ const messages = {
         runLinkLabel: 'GitHub Workflow:',
         openRun: 'Open',
         esphomeVersion: 'ESPHome version:',
-        artifactPassword: 'Archive password:',
-        artifact: 'Firmware artifact:',
-        downloading: 'Downloading...',
-        downloadArtifact: 'Download {name}.zip',
+        firmware: 'Firmware:',
+        prepareFirmware: 'Prepare .bin files',
+        preparing: 'Preparing firmware...',
+        downloadFirmware: 'Download {name}',
+        firmwareListHint: 'Compiled firmware (download the .bin you need):',
+        saveFile: 'Save',
         workflowQueued: 'Workflow triggered. Waiting to run...',
         errorLogs: 'Error Logs',
         loadingLogs: 'Loading error logs...'
@@ -111,12 +107,10 @@ const messages = {
         missingScopes: 'Your GitHub authorization is missing required permissions. Please re-authorize.',
         secretsMissing: 'Provide values for the following secrets: {names}',
         yamlTooLarge: 'The YAML file is too large. Keep it under 200KB.',
-        passwordRequired: 'Set a password for decrypting the artifact.',
-        passwordLength: 'The password must be between 8 and 64 characters.',
-        passwordCharset: 'The password may only contain letters and numbers.',
         triggerFailed: 'Failed to trigger the workflow. Please try again later.',
         statusFailed: 'Failed to refresh the workflow status.',
-        downloadFailed: 'Failed to download the firmware. Check your permissions or try again later.'
+        downloadFailed: 'Failed to download the firmware. Check your permissions or try again later.',
+        firmwareExtractFailed: 'Failed to unpack the firmware binaries. Please download from the Workflow page instead.'
       }
     }
   },
@@ -145,12 +139,6 @@ const messages = {
             custom: '自定义...'
           },
           defaultLabel: '最新稳定版'
-        },
-        artifactPassword: {
-          label: '压缩包密码',
-          placeholder: '自动生成 16 位字母数字组合',
-          regenerate: '重新生成',
-          hint: '下载固件产物后需要该密码才能解压，建议使用 8-64 位字母或数字组合。'
         }
       },
       secrets: {
@@ -185,10 +173,12 @@ const messages = {
         runLinkLabel: 'GitHub Workflow:',
         openRun: '打开',
         esphomeVersion: 'ESPHome 版本:',
-        artifactPassword: '解压密码:',
-        artifact: '固件产物:',
-        downloading: '下载中...',
-        downloadArtifact: '下载 {name}.zip',
+        firmware: '固件下载:',
+        prepareFirmware: '获取 .bin 固件',
+        preparing: '正在准备固件...',
+        downloadFirmware: '下载 {name}',
+        firmwareListHint: '编译产出的固件（按需下载，无需解压）：',
+        saveFile: '保存',
         workflowQueued: 'Workflow 已触发，等待运行...',
         errorLogs: '错误日志',
         loadingLogs: '正在加载错误日志...'
@@ -221,12 +211,10 @@ const messages = {
         missingScopes: '当前授权缺少必要的 GitHub 权限，请重新授权。',
         secretsMissing: '请为以下 secret 提供具体值：{names}',
         yamlTooLarge: 'YAML 太大，请控制在 200KB 内。',
-        passwordRequired: '请设置用于解压产物的密码。',
-        passwordLength: '密码长度需在 8 到 64 个字符之间。',
-        passwordCharset: '密码仅支持字母与数字组合。',
         triggerFailed: '触发编译失败，请稍后再试。',
         statusFailed: '获取状态失败。',
-        downloadFailed: '下载固件失败，请检查权限或稍后重试。'
+        downloadFailed: '下载固件失败，请检查权限或稍后重试。',
+        firmwareExtractFailed: '固件解包失败，请到 Workflow 页面手动下载产物。'
       }
     }
   }

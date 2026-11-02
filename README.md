@@ -5,8 +5,8 @@ Paste your ESPHome YAML in the browser to compile in the cloud and download firm
 ## Features
 
 - ✅ Automatically detects and collects `!secret` placeholders in order of appearance, with local caching to avoid re-entering values on subsequent compilations.
-- ✅ Generates a 16-character alphanumeric archive password, customizable and locally persisted; firmware artifacts are encrypted zip files named `firmware-<request_id>-password.zip`.
-- ✅ Automatically saves YAML drafts, archive passwords, ESPHome version selection, and recent compilation status; recovers on page refresh.
+- ✅ No password, no compression: the Workflow keeps the raw `*.bin` firmware, and the browser unpacks the GitHub artifact wrapper so you download `firmware.bin` directly.
+- ✅ Automatically saves YAML drafts, ESPHome version selection, and recent compilation status; recovers on page refresh.
 - ✅ Supports selecting common ESPHome versions from a dropdown or manually entering a specific version number for historical builds.
 - ✅ Retains GitHub Workflow link on failure for one-click access to full logs.
 
@@ -71,9 +71,9 @@ Paste your ESPHome YAML in the browser to compile in the cloud and download firm
 1. (Optional) Click "GitHub Login" to authorize, granting `workflow` + `public_repo` (or `repo`) permissions; when not logged in, the platform uses `GITHUB_SERVICE_TOKEN` to trigger Workflows.
 2. Return to the page and paste your ESPHome YAML.
 3. If YAML contains `!secret`, the system auto-detects and generates input fields with auto-completion for quoted values and local caching; confirm fields before submission.
-4. If no custom archive password is set, the interface generates a 16-character alphanumeric password displayed for later use when extracting the artifact.
+4. No archive password is required; compile and download the firmware directly.
 5. After submission, the frontend Base64-encodes the YAML and triggers `workflow_dispatch` via Pages Functions (defaults to platform token; falls back to logged-in user token on failure).
-6. Frontend polls Workflow status; upon completion, displays firmware download button to directly download the encrypted `firmware-<request_id>-password.zip`.
+6. Frontend polls Workflow status; upon completion, it fetches the artifact once, unpacks it in the browser, and offers the raw `*.bin` files for download (no password, no manual unzip).
 7. Click "Logout" to clear session when switching accounts.
 
 > Page refresh doesn't lose YAML drafts or ongoing compilations; requests automatically recover and continue polling status.
@@ -82,7 +82,8 @@ Paste your ESPHome YAML in the browser to compile in the cloud and download firm
 
 - Decodes YAML to `config.yaml`.
 - Installs ESPHome based on the version number passed from frontend (defaults to latest stable) and runs `esphome compile config.yaml`.
-- Encrypts and packages all generated firmware `*.bin` (and manifest) with `config.yaml` into `firmware-<request_id>-password.zip`, uploaded to `artifact/` directory; artifacts retained for 1 day.
+- Collects all generated firmware `*.bin` into the `artifact/` directory as-is — no zip, no password.
+- Uploads them with `actions/upload-artifact`; artifacts retained for 1 day. GitHub always serves artifact downloads as a zip wrapper, so the frontend unpacks it in the browser and hands the user the raw `.bin` files.
 - Run name includes `request_id`; Pages Functions matches Workflow Run accordingly.
 
 ## Security Notes

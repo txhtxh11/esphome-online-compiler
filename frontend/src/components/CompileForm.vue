@@ -85,35 +85,6 @@
           </p>
         </label>
 
-        <label class="field">
-          <span>{{ t('compileForm.fields.artifactPassword.label') }}</span>
-          <div class="password-input">
-            <input
-              v-model="artifactPassword"
-              type="text"
-              inputmode="text"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="none"
-              spellcheck="false"
-              maxlength="64"
-              :placeholder="t('compileForm.fields.artifactPassword.placeholder')"
-              :disabled="pending"
-            />
-            <button
-              type="button"
-              class="ghost mini"
-              :disabled="pending"
-              @click="regenerateArtifactPassword"
-            >
-              {{ t('compileForm.fields.artifactPassword.regenerate') }}
-            </button>
-          </div>
-          <p class="field-hint">
-            {{ t('compileForm.fields.artifactPassword.hint') }}
-          </p>
-        </label>
-
         <div class="actions">
           <div class="primary-actions">
             <button :class="{ loading: pending }" :disabled="pending || !canSubmit" type="submit">
@@ -176,21 +147,31 @@
           <strong>{{ t('compileForm.status.esphomeVersion') }}</strong>
           {{ esphomeVersionLabel }}
         </p>
-        <p>
-          <strong>{{ t('compileForm.status.artifactPassword') }}</strong>
-          <span class="password-display">{{ artifactPassword }}</span>
-        </p>
-        <p v-if="artifact && artifactUrl">
-          <strong>{{ t('compileForm.status.artifact') }}</strong>
-          <button
-            :disabled="downloadingArtifact"
-            :class="['ghost', { loading: downloadingArtifact }]"
-            type="button"
-            @click="downloadArtifact"
-          >
-            {{ downloadingArtifact ? t('compileForm.status.downloading') : t('compileForm.status.downloadArtifact', { name: artifact.name }) }}
-          </button>
-        </p>
+        <div v-if="artifact && artifactUrl" class="firmware-block">
+          <p>
+            <strong>{{ t('compileForm.status.firmware') }}</strong>
+            <button
+              :disabled="preparingFirmware || savingFirmware"
+              :class="['ghost', { loading: preparingFirmware || savingFirmware }]"
+              type="button"
+              @click="downloadFirmware"
+            >
+              {{ preparingFirmware ? t('compileForm.status.preparing') : t('compileForm.status.prepareFirmware') }}
+            </button>
+          </p>
+          <template v-if="firmwareFiles.length">
+            <p class="field-hint">{{ t('compileForm.status.firmwareListHint') }}</p>
+            <ul class="firmware-list">
+              <li v-for="file in firmwareFiles" :key="file.name">
+                <span class="firmware-name">{{ file.name }}</span>
+                <span class="firmware-size">{{ formatFileSize(file.size) }}</span>
+                <button class="ghost mini" type="button" @click="saveFirmwareFile(file)">
+                  {{ t('compileForm.status.saveFile') }}
+                </button>
+              </li>
+            </ul>
+          </template>
+        </div>
         
         <section v-if="jobLogs" class="error-logs">
           <h3>{{ t('compileForm.status.errorLogs') }}</h3>
@@ -207,9 +188,10 @@
 <script setup lang="ts">
 import axios from 'axios';
 import { Base64 } from 'js-base64';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import YamlEditor from './YamlEditor.vue';
+import { extractFirmwareFiles, pickRecommendedFirmware, type FirmwareFile } from '../zip-extract';
 
 type TokenSource = 'service' | 'session';
 
@@ -252,7 +234,6 @@ type PersistedJobState = {
   status: WorkflowStatus;
   artifact: ArtifactMeta | null;
   artifactUrl: string | null;
-  artifactPassword?: string | null;
   tokenSource: TokenSource | null;
   esphomeVersion?: string | null;
 };
@@ -266,7 +247,6 @@ const { t, te } = useI18n();
 
 const STORAGE_DRAFT_KEY = 'esphome-online-compiler:yaml-draft';
 const STORAGE_JOB_KEY = 'esphome-online-compiler:job-state';
-const STORAGE_PASSWORD_KEY = 'esphome-online-compiler:artifact-password';
 const STORAGE_SECRETS_KEY = 'esphome-online-compiler:secret-values';
 const STORAGE_VERSION_KEY = 'esphome-online-compiler:esphome-version';
 const YAML_PLACEHOLDER = `esphome:
@@ -294,9 +274,10 @@ const requestId = ref<string | null>(null);
 const runUrl = ref<string | null>(null);
 const artifactUrl = ref<string | null>(null);
 const artifact = ref<ArtifactMeta | null>(null);
-const artifactPassword = ref('');
+const firmwareFiles = shallowRef<FirmwareFile[]>([]);
 const pending = ref(false);
-const downloadingArtifact = ref(false);
+const preparingFirmware = ref(false);
+const savingFirmware = ref(false);
 const error = ref<string | null>(null);
 const pollTimer = ref<number | null>(null);
 const preferPersonalToken = ref(false);
@@ -430,59 +411,6 @@ function applyServiceTokenDegraded(payload: ApiErrorPayload | undefined) {
   }
 }
 
-function generateRandomPassword(length = 16): string {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const bucketLength = characters.length;
-  if (length <= 0) {
-    return '';
-  }
-  const cryptoObj = typeof globalThis !== 'undefined' ? globalThis.crypto ?? null : null;
-  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
-    const randomValues = new Uint32Array(length);
-    cryptoObj.getRandomValues(randomValues);
-    return Array.from(randomValues, (value) => characters[value % bucketLength]).join('');
-  }
-  let result = '';
-  for (let index = 0; index < length; index += 1) {
-    const randomIndex = Math.floor(Math.random() * bucketLength);
-    result += characters[randomIndex];
-  }
-  return result;
-}
-
-function persistPassword(value: string) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  try {
-    if (value) {
-      window.localStorage.setItem(STORAGE_PASSWORD_KEY, value);
-    } else {
-      window.localStorage.removeItem(STORAGE_PASSWORD_KEY);
-    }
-  } catch (err) {
-    console.warn('Failed to persist artifact password', err);
-  }
-}
-
-function restorePassword() {
-  if (typeof window === 'undefined') {
-    artifactPassword.value = generateRandomPassword();
-    return;
-  }
-  try {
-    const saved = window.localStorage.getItem(STORAGE_PASSWORD_KEY);
-    if (saved && /^[A-Za-z0-9]{8,64}$/.test(saved)) {
-      artifactPassword.value = saved;
-      return;
-    }
-  } catch (err) {
-    console.warn('Failed to restore artifact password', err);
-  }
-  artifactPassword.value = generateRandomPassword();
-  persistPassword(artifactPassword.value);
-}
-
 function persistEsphomeVersion(value: string) {
   if (typeof window === 'undefined') {
     return;
@@ -518,10 +446,6 @@ function restoreEsphomeVersion() {
   }
   selectedEsphomeVersion.value = '';
   customEsphomeVersion.value = '';
-}
-
-function regenerateArtifactPassword() {
-  artifactPassword.value = generateRandomPassword();
 }
 
 function openRunUrl() {
@@ -692,7 +616,6 @@ function clearSecrets() {
 onMounted(() => {
   restoreDraft();
   updateSecretPlaceholders(yaml.value);
-  restorePassword();
   restoreEsphomeVersion();
   loadSession();
 });
@@ -713,11 +636,9 @@ watch(yaml, (value) => {
   updateSecretPlaceholders(value);
 });
 
-watch(artifactPassword, (value) => {
-  persistPassword(value);
-  if (requestId.value) {
-    persistJobState();
-  }
+watch(artifactUrl, () => {
+  // 产物地址变化说明换了一次编译，旧的固件缓存需要丢弃
+  firmwareFiles.value = [];
 });
 
 let syncingEsphomeVersion = false;
@@ -868,23 +789,6 @@ async function handleSubmit() {
     return;
   }
 
-  const normalizedPassword = artifactPassword.value.trim();
-  if (!normalizedPassword) {
-    error.value = t('compileForm.errors.passwordRequired');
-    return;
-  }
-  if (normalizedPassword.length < 8 || normalizedPassword.length > 64) {
-    error.value = t('compileForm.errors.passwordLength');
-    return;
-  }
-  if (!/^[A-Za-z0-9]+$/.test(normalizedPassword)) {
-    error.value = t('compileForm.errors.passwordCharset');
-    return;
-  }
-  if (normalizedPassword !== artifactPassword.value) {
-    artifactPassword.value = normalizedPassword;
-  }
-
   // 清除旧的编译状态
   clearPolling();
   requestId.value = null;
@@ -892,6 +796,7 @@ async function handleSubmit() {
   runUrl.value = null;
   artifactUrl.value = null;
   artifact.value = null;
+  firmwareFiles.value = [];
   status.status = '';
   status.conclusion = '';
   status.message = '';
@@ -904,12 +809,10 @@ async function handleSubmit() {
   try {
     const payload: {
       encodedYaml: string;
-      artifactPassword: string;
       useUserToken?: boolean;
       esphomeVersion?: string;
     } = {
-      encodedYaml: Base64.encode(yamlForCompile),
-      artifactPassword: normalizedPassword
+      encodedYaml: Base64.encode(yamlForCompile)
     };
 
     const versionToUse = selectedEsphomeVersion.value.trim();
@@ -1040,40 +943,92 @@ async function refreshStatus() {
   persistJobState();
 }
 
-async function downloadArtifact() {
-  if (!artifactUrl.value) return;
-  downloadingArtifact.value = true;
+function buildTokenHeaders(): Record<string, string> | undefined {
+  return (preferPersonalToken.value || serviceTokenDegraded.value) && canUsePersonalToken.value
+    ? { 'X-GitHub-Token-Source': 'session' }
+    : undefined;
+}
 
+function formatFileSize(size: number): string {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+  return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const blobUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}
+
+/**
+ * GitHub Actions 的产物接口只会返回 zip 包装，这里下载一次并在浏览器内解包，
+ * 之后用户拿到的就是原始 .bin 固件。
+ */
+async function prepareFirmware(): Promise<FirmwareFile[]> {
+  if (!artifactUrl.value) {
+    return [];
+  }
+  if (firmwareFiles.value.length > 0) {
+    return firmwareFiles.value;
+  }
+
+  preparingFirmware.value = true;
   try {
-    const tokenHeaders =
-      (preferPersonalToken.value || serviceTokenDegraded.value) && canUsePersonalToken.value
-        ? { 'X-GitHub-Token-Source': 'session' }
-        : undefined;
     const response = await client.get<ArrayBuffer>(artifactUrl.value, {
       responseType: 'arraybuffer',
-      headers: tokenHeaders
+      headers: buildTokenHeaders()
     });
-    const blob = new Blob([response.data], { type: 'application/zip' });
-    const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = `${artifact.value?.name ?? 'firmware'}.zip`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(blobUrl);
+    const files = extractFirmwareFiles(response.data);
+    if (files.length === 0) {
+      error.value = t('compileForm.errors.firmwareExtractFailed');
+      return [];
+    }
+    firmwareFiles.value = files;
     persistJobState();
+    return files;
   } catch (err) {
-    console.error('Failed to download artifact', err);
+    console.error('Failed to prepare firmware', err);
     const payload = axios.isAxiosError(err)
       ? (err.response?.data as ApiErrorPayload | undefined)
       : undefined;
-    const message = payload?.message ?? t('compileForm.errors.downloadFailed');
     applyServiceTokenDegraded(payload);
-    error.value = payload?.serviceTokenDegraded ? null : message;
+    error.value = payload?.serviceTokenDegraded
+      ? null
+      : payload?.message ?? t('compileForm.errors.downloadFailed');
+    return [];
   } finally {
-    downloadingArtifact.value = false;
+    preparingFirmware.value = false;
   }
+}
+
+async function downloadFirmware() {
+  if (savingFirmware.value) {
+    return;
+  }
+  savingFirmware.value = true;
+  try {
+    const files = await prepareFirmware();
+    const recommended = pickRecommendedFirmware(files);
+    if (recommended) {
+      saveFirmwareFile(recommended);
+    }
+  } finally {
+    savingFirmware.value = false;
+  }
+}
+
+function saveFirmwareFile(file: FirmwareFile) {
+  saveBlob(new Blob([file.data], { type: 'application/octet-stream' }), file.name);
 }
 
 async function fetchJobLogs(jobId: number) {
@@ -1166,9 +1121,6 @@ async function restoreJobState() {
     } else {
       artifactUrl.value = null;
     }
-    if (saved.artifactPassword) {
-      artifactPassword.value = saved.artifactPassword;
-    }
     if (Object.prototype.hasOwnProperty.call(saved, 'esphomeVersion')) {
       const savedVersion = saved.esphomeVersion ?? '';
       selectedEsphomeVersion.value = savedVersion;
@@ -1183,7 +1135,8 @@ async function restoreJobState() {
     }
 
     pending.value = false;
-    downloadingArtifact.value = false;
+    preparingFirmware.value = false;
+    savingFirmware.value = false;
     error.value = null;
 
     if (status.status && status.status !== 'completed') {
@@ -1221,7 +1174,6 @@ function persistJobState() {
     },
     artifact: artifact.value ? { ...artifact.value } : null,
     artifactUrl: artifactUrl.value,
-    artifactPassword: artifactPassword.value || null,
     tokenSource: lastTokenSource.value ?? null,
     esphomeVersion: selectedEsphomeVersion.value ? selectedEsphomeVersion.value : null
   };
@@ -1258,13 +1210,15 @@ function clearJobState() {
   runUrl.value = null;
   artifactUrl.value = null;
   artifact.value = null;
+  firmwareFiles.value = [];
   status.status = '';
   status.conclusion = '';
   status.message = '';
   status.failedJobId = null;
   lastTokenSource.value = null;
   error.value = null;
-  downloadingArtifact.value = false;
+  preparingFirmware.value = false;
+  savingFirmware.value = false;
   pending.value = false;
   jobLogs.value = null;
   clearPersistedJob();
@@ -1329,18 +1283,42 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
-.password-display {
-  display: inline-flex;
+.firmware-block {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.firmware-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.firmware-list li {
+  display: flex;
   align-items: center;
-  padding: 0.15rem 0.6rem;
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  color: #e0f2fe;
+  gap: 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.firmware-name {
   font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo,
     Monaco, Consolas, monospace;
   font-size: 0.85rem;
-  letter-spacing: 0.04em;
+  color: #e0f2fe;
+  word-break: break-all;
+}
+
+.firmware-size {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  white-space: nowrap;
 }
 
 input:not([type='checkbox']) {
